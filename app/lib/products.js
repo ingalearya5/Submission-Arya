@@ -81,6 +81,28 @@ export function filterProducts(
   return result;
 }
 
+/** Supported sort keys for the catalog. */
+export const SORT_OPTIONS = {
+  "price-asc": "Price: Low to High",
+  "rating-desc": "Top Rated First",
+};
+
+export function sortProducts(products, sort = "") {
+  if (!sort || !SORT_OPTIONS[sort]) return products;
+
+  const sorted = [...products];
+
+  if (sort === "price-asc") {
+    return sorted.sort((a, b) => a.price - b.price);
+  }
+
+  if (sort === "rating-desc") {
+    return sorted.sort((a, b) => b.rating - a.rating);
+  }
+
+  return products;
+}
+
 export function paginateProducts(products, page, pageSize) {
   const total = products.length;
   const skip = (page - 1) * pageSize;

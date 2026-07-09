@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { SORT_OPTIONS } from "../lib/products";
 
-export function Topbar({ defaultQuery = "" }) {
+export function Topbar({ defaultQuery = "", activeSort = "" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState(defaultQuery);
 
   useEffect(() => {
@@ -15,15 +17,33 @@ export function Topbar({ defaultQuery = "" }) {
   function handleSubmit(e) {
     e.preventDefault();
     const trimmed = query.trim();
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(searchParams.toString());
+
     if (trimmed) params.set("q", trimmed);
+    else params.delete("q");
+
+    params.delete("page");
+
     const qs = params.toString();
     router.push(qs ? `/?${qs}` : "/");
   }
 
+  function handleSortChange(e) {
+    const value = e.target.value;
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (value) params.set("sort", value);
+    else params.delete("sort");
+
+    params.delete("page");
+
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+  }
+
   return (
     <header className="sticky top-0 z-10 border-b border-[#E2DFD6] bg-white/95 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-4">
+      <div className="mx-auto flex max-w-7xl items-center gap-4 px-6 py-4 sm:gap-6">
         <Link
           href="/"
           className="shrink-0 font-[family-name:var(--font-display)] text-xl font-semibold italic text-[#2F4F44]"
@@ -31,8 +51,8 @@ export function Topbar({ defaultQuery = "" }) {
           Curated
         </Link>
 
-        <form onSubmit={handleSubmit} className="flex flex-1 items-center gap-3">
-          <div className="relative flex-1">
+        <form onSubmit={handleSubmit} className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="relative min-w-0 flex-1">
             <svg
               viewBox="0 0 20 20"
               aria-hidden="true"
@@ -61,6 +81,26 @@ export function Topbar({ defaultQuery = "" }) {
             Search
           </button>
         </form>
+
+        <div className="shrink-0">
+          <label htmlFor="sort-by" className="sr-only">
+            Sort by
+          </label>
+          <select
+            id="sort-by"
+            value={activeSort}
+            onChange={handleSortChange}
+            aria-label="Sort by"
+            className="h-10 cursor-pointer rounded-sm border border-[#E2DFD6] bg-[#FAF9F6] px-3 font-[family-name:var(--font-mono)] text-xs text-[#1C1B19] transition-colors focus:border-[#2F4F44] focus:bg-white focus:outline-none"
+          >
+            <option value="">Sort By</option>
+            {Object.entries(SORT_OPTIONS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
     </header>
   );

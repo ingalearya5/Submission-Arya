@@ -19,6 +19,8 @@ function buildFilterHref(category, searchParams) {
   if (maxPrice) params.set("maxPrice", maxPrice);
   const minRating = searchParams.get("minRating");
   if (minRating) params.set("minRating", minRating);
+  const sort = searchParams.get("sort");
+  if (sort) params.set("sort", sort);
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
 }

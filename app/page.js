@@ -8,6 +8,8 @@ import {
   getPriceBounds,
   getSidebarCategories,
   paginateProducts,
+  sortProducts,
+  SORT_OPTIONS,
 } from "./lib/products";
 
 const fraunces = Fraunces({
@@ -37,7 +39,8 @@ function buildPageHref(
   category = "",
   minPrice,
   maxPrice,
-  minRating
+  minRating,
+  sort = ""
 ) {
   const params = new URLSearchParams();
   if (query.trim()) params.set("q", query.trim());
@@ -45,6 +48,7 @@ function buildPageHref(
   if (minPrice != null) params.set("minPrice", String(minPrice));
   if (maxPrice != null) params.set("maxPrice", String(maxPrice));
   if (minRating != null) params.set("minRating", String(minRating));
+  if (sort && SORT_OPTIONS[sort]) params.set("sort", sort);
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
@@ -107,6 +111,7 @@ function Pagination({
   minPrice,
   maxPrice,
   minRating,
+  sort = "",
 }) {
   if (totalPages <= 1) return null;
 
@@ -129,7 +134,8 @@ function Pagination({
           category,
           minPrice,
           maxPrice,
-          minRating
+          minRating,
+          sort
         )}
         aria-disabled={prevDisabled}
         tabIndex={prevDisabled ? -1 : undefined}
@@ -153,7 +159,7 @@ function Pagination({
         ) : (
           <Link
             key={p}
-            href={buildPageHref(p, query, category, minPrice, maxPrice, minRating)}
+            href={buildPageHref(p, query, category, minPrice, maxPrice, minRating, sort)}
             aria-current={p === currentPage ? "page" : undefined}
             className={`flex h-9 w-9 items-center justify-center rounded-sm font-[family-name:var(--font-mono)] text-xs transition-colors ${
               p === currentPage
@@ -173,7 +179,8 @@ function Pagination({
           category,
           minPrice,
           maxPrice,
-          minRating
+          minRating,
+          sort
         )}
         aria-disabled={nextDisabled}
         tabIndex={nextDisabled ? -1 : undefined}
@@ -198,6 +205,8 @@ export default async function Home({ searchParams }) {
   const minPriceParam = parseFloat(sp?.minPrice);
   const maxPriceParam = parseFloat(sp?.maxPrice);
   const minRatingParam = parseInt(sp?.minRating, 10);
+  const sortParam = sp?.sort?.trim() || "";
+  const activeSort = SORT_OPTIONS[sortParam] ? sortParam : "";
 
   let products = [];
   let total = 0;
@@ -228,7 +237,8 @@ export default async function Home({ searchParams }) {
         : {}),
       ...(hasRatingFilter ? { minRating: minRatingParam } : {}),
     });
-    const pageData = paginateProducts(filtered, page, PAGE_SIZE);
+    const sorted = sortProducts(filtered, activeSort);
+    const pageData = paginateProducts(sorted, page, PAGE_SIZE);
     products = pageData.products;
     total = pageData.total;
   } catch (err) {
@@ -243,7 +253,7 @@ export default async function Home({ searchParams }) {
     <div
       className={`${fraunces.variable} ${inter.variable} ${spaceGrotesk.variable} min-h-screen bg-[#F5F3EE] font-[family-name:var(--font-body)] text-[#1C1B19]`}
     >
-      <Topbar defaultQuery={searchQuery} />
+      <Topbar defaultQuery={searchQuery} activeSort={activeSort} />
 
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 lg:flex-row">
         <Sidebar
@@ -349,6 +359,7 @@ export default async function Home({ searchParams }) {
             minPrice={hasPriceFilter ? minPriceParam : undefined}
             maxPrice={hasPriceFilter ? maxPriceParam : undefined}
             minRating={hasRatingFilter ? minRatingParam : undefined}
+            sort={activeSort}
           />
         </main>
       </div>
