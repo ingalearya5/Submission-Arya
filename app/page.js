@@ -6,6 +6,7 @@ import {
   filterProducts,
   getAllProducts,
   getPriceBounds,
+  getSidebarCategories,
   paginateProducts,
 } from "./lib/products";
 
@@ -183,7 +184,7 @@ export default async function Home({ searchParams }) {
 
   try {
     const allProducts = await getAllProducts();
-    categories = [...new Set(allProducts.map((p) => p.category))].sort();
+    categories = getSidebarCategories(allProducts);
     priceBounds = getPriceBounds(allProducts);
 
     hasPriceFilter =

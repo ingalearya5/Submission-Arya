@@ -12,10 +12,26 @@ export const getAllProducts = cache(async () => {
   return data.products ?? [];
 });
 
+/** Categories shown in the sidebar filter (max 7). */
+export const SIDEBAR_CATEGORIES = [
+  "beauty",
+  "smartphones",
+  "laptops",
+  "furniture",
+  "groceries",
+  "mens-shoes",
+  "womens-dresses",
+];
+
+export function getSidebarCategories(products) {
+  const available = new Set(products.map((p) => p.category));
+  return SIDEBAR_CATEGORIES.filter((category) => available.has(category));
+}
+
 /** Derived from the cached catalog — no extra network call. */
 export const getCategories = cache(async () => {
   const products = await getAllProducts();
-  return [...new Set(products.map((p) => p.category))].sort();
+  return getSidebarCategories(products);
 });
 
 /** Min/max price across the catalog. */
