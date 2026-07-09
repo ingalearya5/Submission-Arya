@@ -1,5 +1,6 @@
 import { Fraunces, Inter, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
+import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
 
 const fraunces = Fraunces({
@@ -23,23 +24,44 @@ const spaceGrotesk = Space_Grotesk({
 
 const PAGE_SIZE = 10;
 
-async function getProducts(page, query = "") {
+async function getCategories() {
+  const res = await fetch("https://dummyjson.com/products/category-list", {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Failed to fetch categories");
+  return res.json();
+}
+
+async function getProducts(page, query = "", category = "") {
   const skip = (page - 1) * PAGE_SIZE;
-  const trimmed = query.trim();
-  const url = trimmed
-    ? `https://dummyjson.com/products/search?q=${encodeURIComponent(trimmed)}&limit=${PAGE_SIZE}&skip=${skip}`
-    : `https://dummyjson.com/products?limit=${PAGE_SIZE}&skip=${skip}`;
+  const trimmedQuery = query.trim();
+  const trimmedCategory = category.trim();
+
+  let url;
+  if (trimmedQuery) {
+    url = `https://dummyjson.com/products/search?q=${encodeURIComponent(trimmedQuery)}&limit=${PAGE_SIZE}&skip=${skip}`;
+  } else if (trimmedCategory) {
+    url = `https://dummyjson.com/products/category/${encodeURIComponent(trimmedCategory)}?limit=${PAGE_SIZE}&skip=${skip}`;
+  } else {
+    url = `https://dummyjson.com/products?limit=${PAGE_SIZE}&skip=${skip}`;
+  }
+
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch products");
   return res.json();
 }
 
-function buildPageHref(page, query = "") {
+function buildPageHref(page, query = "", category = "") {
   const params = new URLSearchParams();
   if (query.trim()) params.set("q", query.trim());
+  if (category.trim()) params.set("category", category.trim());
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
+}
+
+function formatCategory(slug) {
+  return slug.replace(/-/g, " ");
 }
 
 function StarRating({ rating }) {
@@ -87,7 +109,7 @@ function getPageNumbers(current, total) {
   return withDots;
 }
 
-function Pagination({ currentPage, totalPages, query = "" }) {
+function Pagination({ currentPage, totalPages, query = "", category = "" }) {
   if (totalPages <= 1) return null;
 
   const pages = getPageNumbers(currentPage, totalPages);
@@ -103,7 +125,7 @@ function Pagination({ currentPage, totalPages, query = "" }) {
       className="mt-12 flex flex-wrap items-center justify-center gap-1.5"
     >
       <Link
-        href={buildPageHref(Math.max(1, currentPage - 1), query)}
+        href={buildPageHref(Math.max(1, currentPage - 1), query, category)}
         aria-disabled={prevDisabled}
         tabIndex={prevDisabled ? -1 : undefined}
         className={`${navBtn} ${
@@ -126,7 +148,7 @@ function Pagination({ currentPage, totalPages, query = "" }) {
         ) : (
           <Link
             key={p}
-            href={buildPageHref(p, query)}
+            href={buildPageHref(p, query, category)}
             aria-current={p === currentPage ? "page" : undefined}
             className={`flex h-9 w-9 items-center justify-center rounded-sm font-[family-name:var(--font-mono)] text-xs transition-colors ${
               p === currentPage
@@ -140,7 +162,7 @@ function Pagination({ currentPage, totalPages, query = "" }) {
       )}
 
       <Link
-        href={buildPageHref(Math.min(totalPages, currentPage + 1), query)}
+        href={buildPageHref(Math.min(totalPages, currentPage + 1), query, category)}
         aria-disabled={nextDisabled}
         tabIndex={nextDisabled ? -1 : undefined}
         className={`${navBtn} ${
@@ -160,15 +182,21 @@ export default async function Home({ searchParams }) {
   const requestedPage = parseInt(sp?.page, 10);
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const searchQuery = sp?.q?.trim() || "";
+  const categoryFilter = sp?.category?.trim() || "";
 
   let products = [];
   let total = 0;
+  let categories = [];
   let loadError = null;
 
   try {
-    const data = await getProducts(page, searchQuery);
-    products = data.products || [];
-    total = data.total || 0;
+    const [productData, categoryList] = await Promise.all([
+      getProducts(page, searchQuery, categoryFilter),
+      getCategories(),
+    ]);
+    products = productData.products || [];
+    total = productData.total || 0;
+    categories = categoryList || [];
   } catch (err) {
     loadError = err.message;
   }
@@ -183,32 +211,41 @@ export default async function Home({ searchParams }) {
     >
       <Topbar defaultQuery={searchQuery} />
 
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        {loadError && (
-          <p className="font-[family-name:var(--font-mono)] text-sm text-red-700">
-            Couldn&apos;t load products: {loadError}
-          </p>
-        )}
+      <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 lg:flex-row">
+        <Sidebar categories={categories} activeCategory={categoryFilter} />
 
-        {!loadError && searchQuery && (
-          <p className="mb-2 font-[family-name:var(--font-display)] text-lg font-medium italic text-[#1C1B19]">
-            Results for &ldquo;{searchQuery}&rdquo;
-          </p>
-        )}
+        <main className="min-w-0 flex-1">
+          {loadError && (
+            <p className="font-[family-name:var(--font-mono)] text-sm text-red-700">
+              Couldn&apos;t load products: {loadError}
+            </p>
+          )}
 
-        {!loadError && total > 0 && (
-          <p className="mb-6 font-[family-name:var(--font-mono)] text-xs tracking-wide text-[#9A9686]">
-            SHOWING {rangeStart}–{rangeEnd} OF {total}
-          </p>
-        )}
+          {!loadError && categoryFilter && (
+            <p className="mb-2 font-[family-name:var(--font-display)] text-lg font-medium italic capitalize text-[#1C1B19]">
+              {formatCategory(categoryFilter)}
+            </p>
+          )}
 
-        {!loadError && searchQuery && total === 0 && (
-          <p className="font-[family-name:var(--font-mono)] text-sm text-[#9A9686]">
-            No products found. Try a different search term.
-          </p>
-        )}
+          {!loadError && searchQuery && !categoryFilter && (
+            <p className="mb-2 font-[family-name:var(--font-display)] text-lg font-medium italic text-[#1C1B19]">
+              Results for &ldquo;{searchQuery}&rdquo;
+            </p>
+          )}
 
-        <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {!loadError && total > 0 && (
+            <p className="mb-6 font-[family-name:var(--font-mono)] text-xs tracking-wide text-[#9A9686]">
+              SHOWING {rangeStart}–{rangeEnd} OF {total}
+            </p>
+          )}
+
+          {!loadError && (searchQuery || categoryFilter) && total === 0 && (
+            <p className="font-[family-name:var(--font-mono)] text-sm text-[#9A9686]">
+              No products found. Try a different filter.
+            </p>
+          )}
+
+          <div className="grid grid-cols-2 gap-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
           {products.map((product) => {
             const hasDiscount = product.discountPercentage > 0;
             const originalPrice = hasDiscount
@@ -257,8 +294,14 @@ export default async function Home({ searchParams }) {
           })}
         </div>
 
-        <Pagination currentPage={page} totalPages={totalPages} query={searchQuery} />
-      </main>
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            query={searchQuery}
+            category={categoryFilter}
+          />
+        </main>
+      </div>
     </div>
   );
 }
