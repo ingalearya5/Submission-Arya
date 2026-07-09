@@ -2,6 +2,11 @@ import { Fraunces, Inter, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
+import {
+  filterProducts,
+  getAllProducts,
+  paginateProducts,
+} from "./lib/products";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -23,33 +28,6 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 const PAGE_SIZE = 10;
-
-async function getCategories() {
-  const res = await fetch("https://dummyjson.com/products/category-list", {
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("Failed to fetch categories");
-  return res.json();
-}
-
-async function getProducts(page, query = "", category = "") {
-  const skip = (page - 1) * PAGE_SIZE;
-  const trimmedQuery = query.trim();
-  const trimmedCategory = category.trim();
-
-  let url;
-  if (trimmedQuery) {
-    url = `https://dummyjson.com/products/search?q=${encodeURIComponent(trimmedQuery)}&limit=${PAGE_SIZE}&skip=${skip}`;
-  } else if (trimmedCategory) {
-    url = `https://dummyjson.com/products/category/${encodeURIComponent(trimmedCategory)}?limit=${PAGE_SIZE}&skip=${skip}`;
-  } else {
-    url = `https://dummyjson.com/products?limit=${PAGE_SIZE}&skip=${skip}`;
-  }
-
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to fetch products");
-  return res.json();
-}
 
 function buildPageHref(page, query = "", category = "") {
   const params = new URLSearchParams();
@@ -190,13 +168,16 @@ export default async function Home({ searchParams }) {
   let loadError = null;
 
   try {
-    const [productData, categoryList] = await Promise.all([
-      getProducts(page, searchQuery, categoryFilter),
-      getCategories(),
-    ]);
-    products = productData.products || [];
-    total = productData.total || 0;
-    categories = categoryList || [];
+    const allProducts = await getAllProducts();
+    categories = [...new Set(allProducts.map((p) => p.category))].sort();
+
+    const filtered = filterProducts(allProducts, {
+      query: searchQuery,
+      category: categoryFilter,
+    });
+    const pageData = paginateProducts(filtered, page, PAGE_SIZE);
+    products = pageData.products;
+    total = pageData.total;
   } catch (err) {
     loadError = err.message;
   }
