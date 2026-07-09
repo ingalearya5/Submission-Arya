@@ -18,14 +18,29 @@ export const getCategories = cache(async () => {
   return [...new Set(products.map((p) => p.category))].sort();
 });
 
+/** Min/max price across the catalog. */
+export function getPriceBounds(products) {
+  if (!products.length) return { min: 0, max: 100 };
+  const prices = products.map((p) => p.price);
+  return {
+    min: Math.floor(Math.min(...prices)),
+    max: Math.ceil(Math.max(...prices)),
+  };
+}
+
 /** Mirrors DummyJSON search fields: title, description, brand, category, tags. */
-export function filterProducts(products, { query = "", category = "" } = {}) {
+export function filterProducts(
+  products,
+  { query = "", category = "", minPrice, maxPrice } = {}
+) {
   const trimmedQuery = query.trim();
   const trimmedCategory = category.trim();
 
+  let result;
+
   if (trimmedQuery) {
     const q = trimmedQuery.toLowerCase();
-    return products.filter(
+    result = products.filter(
       (p) =>
         p.title.toLowerCase().includes(q) ||
         p.description.toLowerCase().includes(q) ||
@@ -33,13 +48,17 @@ export function filterProducts(products, { query = "", category = "" } = {}) {
         p.category.toLowerCase().includes(q) ||
         p.tags?.some((t) => t.toLowerCase().includes(q))
     );
+  } else if (trimmedCategory) {
+    result = products.filter((p) => p.category === trimmedCategory);
+  } else {
+    result = products;
   }
 
-  if (trimmedCategory) {
-    return products.filter((p) => p.category === trimmedCategory);
+  if (minPrice != null && maxPrice != null) {
+    result = result.filter((p) => p.price >= minPrice && p.price <= maxPrice);
   }
 
-  return products;
+  return result;
 }
 
 export function paginateProducts(products, page, pageSize) {

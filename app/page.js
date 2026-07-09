@@ -5,6 +5,7 @@ import { Topbar } from "./components/Topbar";
 import {
   filterProducts,
   getAllProducts,
+  getPriceBounds,
   paginateProducts,
 } from "./lib/products";
 
@@ -29,10 +30,12 @@ const spaceGrotesk = Space_Grotesk({
 
 const PAGE_SIZE = 10;
 
-function buildPageHref(page, query = "", category = "") {
+function buildPageHref(page, query = "", category = "", minPrice, maxPrice) {
   const params = new URLSearchParams();
   if (query.trim()) params.set("q", query.trim());
   if (category.trim()) params.set("category", category.trim());
+  if (minPrice != null) params.set("minPrice", String(minPrice));
+  if (maxPrice != null) params.set("maxPrice", String(maxPrice));
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
@@ -87,7 +90,14 @@ function getPageNumbers(current, total) {
   return withDots;
 }
 
-function Pagination({ currentPage, totalPages, query = "", category = "" }) {
+function Pagination({
+  currentPage,
+  totalPages,
+  query = "",
+  category = "",
+  minPrice,
+  maxPrice,
+}) {
   if (totalPages <= 1) return null;
 
   const pages = getPageNumbers(currentPage, totalPages);
@@ -103,7 +113,7 @@ function Pagination({ currentPage, totalPages, query = "", category = "" }) {
       className="mt-12 flex flex-wrap items-center justify-center gap-1.5"
     >
       <Link
-        href={buildPageHref(Math.max(1, currentPage - 1), query, category)}
+        href={buildPageHref(Math.max(1, currentPage - 1), query, category, minPrice, maxPrice)}
         aria-disabled={prevDisabled}
         tabIndex={prevDisabled ? -1 : undefined}
         className={`${navBtn} ${
@@ -126,7 +136,7 @@ function Pagination({ currentPage, totalPages, query = "", category = "" }) {
         ) : (
           <Link
             key={p}
-            href={buildPageHref(p, query, category)}
+            href={buildPageHref(p, query, category, minPrice, maxPrice)}
             aria-current={p === currentPage ? "page" : undefined}
             className={`flex h-9 w-9 items-center justify-center rounded-sm font-[family-name:var(--font-mono)] text-xs transition-colors ${
               p === currentPage
@@ -140,7 +150,7 @@ function Pagination({ currentPage, totalPages, query = "", category = "" }) {
       )}
 
       <Link
-        href={buildPageHref(Math.min(totalPages, currentPage + 1), query, category)}
+        href={buildPageHref(Math.min(totalPages, currentPage + 1), query, category, minPrice, maxPrice)}
         aria-disabled={nextDisabled}
         tabIndex={nextDisabled ? -1 : undefined}
         className={`${navBtn} ${
@@ -161,19 +171,32 @@ export default async function Home({ searchParams }) {
   const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const searchQuery = sp?.q?.trim() || "";
   const categoryFilter = sp?.category?.trim() || "";
+  const minPriceParam = parseFloat(sp?.minPrice);
+  const maxPriceParam = parseFloat(sp?.maxPrice);
 
   let products = [];
   let total = 0;
   let categories = [];
+  let priceBounds = { min: 0, max: 100 };
   let loadError = null;
+  let hasPriceFilter = false;
 
   try {
     const allProducts = await getAllProducts();
     categories = [...new Set(allProducts.map((p) => p.category))].sort();
+    priceBounds = getPriceBounds(allProducts);
+
+    hasPriceFilter =
+      Number.isFinite(minPriceParam) &&
+      Number.isFinite(maxPriceParam) &&
+      (minPriceParam > priceBounds.min || maxPriceParam < priceBounds.max);
 
     const filtered = filterProducts(allProducts, {
       query: searchQuery,
       category: categoryFilter,
+      ...(hasPriceFilter
+        ? { minPrice: minPriceParam, maxPrice: maxPriceParam }
+        : {}),
     });
     const pageData = paginateProducts(filtered, page, PAGE_SIZE);
     products = pageData.products;
@@ -193,7 +216,17 @@ export default async function Home({ searchParams }) {
       <Topbar defaultQuery={searchQuery} />
 
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-6 py-10 lg:flex-row">
-        <Sidebar categories={categories} activeCategory={categoryFilter} />
+        <Sidebar
+          categories={categories}
+          activeCategory={categoryFilter}
+          priceBounds={priceBounds}
+          activeMinPrice={
+            Number.isFinite(minPriceParam) ? minPriceParam : priceBounds.min
+          }
+          activeMaxPrice={
+            Number.isFinite(maxPriceParam) ? maxPriceParam : priceBounds.max
+          }
+        />
 
         <main className="min-w-0 flex-1">
           {loadError && (
@@ -220,7 +253,7 @@ export default async function Home({ searchParams }) {
             </p>
           )}
 
-          {!loadError && (searchQuery || categoryFilter) && total === 0 && (
+          {!loadError && (searchQuery || categoryFilter || hasPriceFilter) && total === 0 && (
             <p className="font-[family-name:var(--font-mono)] text-sm text-[#9A9686]">
               No products found. Try a different filter.
             </p>
@@ -280,6 +313,8 @@ export default async function Home({ searchParams }) {
             totalPages={totalPages}
             query={searchQuery}
             category={categoryFilter}
+            minPrice={hasPriceFilter ? minPriceParam : undefined}
+            maxPrice={hasPriceFilter ? maxPriceParam : undefined}
           />
         </main>
       </div>
