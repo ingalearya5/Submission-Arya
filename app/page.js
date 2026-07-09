@@ -40,7 +40,7 @@ function buildPageHref(
   minPrice,
   maxPrice,
   minRating,
-  sort = ""
+  sort = "",
 ) {
   const params = new URLSearchParams();
   if (query.trim()) params.set("q", query.trim());
@@ -86,7 +86,11 @@ function getPageNumbers(current, total) {
   let last;
 
   for (let i = 1; i <= total; i++) {
-    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
+    if (
+      i === 1 ||
+      i === total ||
+      (i >= current - delta && i <= current + delta)
+    ) {
       range.push(i);
     }
   }
@@ -135,7 +139,7 @@ function Pagination({
           minPrice,
           maxPrice,
           minRating,
-          sort
+          sort,
         )}
         aria-disabled={prevDisabled}
         tabIndex={prevDisabled ? -1 : undefined}
@@ -159,7 +163,15 @@ function Pagination({
         ) : (
           <Link
             key={p}
-            href={buildPageHref(p, query, category, minPrice, maxPrice, minRating, sort)}
+            href={buildPageHref(
+              p,
+              query,
+              category,
+              minPrice,
+              maxPrice,
+              minRating,
+              sort,
+            )}
             aria-current={p === currentPage ? "page" : undefined}
             className={`flex h-9 w-9 items-center justify-center rounded-sm font-[family-name:var(--font-mono)] text-xs transition-colors ${
               p === currentPage
@@ -169,7 +181,7 @@ function Pagination({
           >
             {p}
           </Link>
-        )
+        ),
       )}
 
       <Link
@@ -180,7 +192,7 @@ function Pagination({
           minPrice,
           maxPrice,
           minRating,
-          sort
+          sort,
         )}
         aria-disabled={nextDisabled}
         tabIndex={nextDisabled ? -1 : undefined}
@@ -199,7 +211,8 @@ function Pagination({
 export default async function Home({ searchParams }) {
   const sp = await searchParams;
   const requestedPage = parseInt(sp?.page, 10);
-  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const page =
+    Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const searchQuery = sp?.q?.trim() || "";
   const categoryFilter = sp?.category?.trim() || "";
   const minPriceParam = parseFloat(sp?.minPrice);
@@ -227,7 +240,9 @@ export default async function Home({ searchParams }) {
       (minPriceParam > priceBounds.min || maxPriceParam < priceBounds.max);
 
     hasRatingFilter =
-      Number.isFinite(minRatingParam) && minRatingParam >= 1 && minRatingParam <= 5;
+      Number.isFinite(minRatingParam) &&
+      minRatingParam >= 1 &&
+      minRatingParam <= 5;
 
     const filtered = filterProducts(allProducts, {
       query: searchQuery,
@@ -295,61 +310,72 @@ export default async function Home({ searchParams }) {
           )}
 
           {!loadError &&
-            (searchQuery || categoryFilter || hasPriceFilter || hasRatingFilter) &&
+            (searchQuery ||
+              categoryFilter ||
+              hasPriceFilter ||
+              hasRatingFilter) &&
             total === 0 && (
-            <p className="font-[family-name:var(--font-mono)] text-sm text-[#9A9686]">
-              No products found. Try a different filter.
-            </p>
-          )}
-
+              <div className="flex flex-col items-start gap-3">
+                <p className="font-[family-name:var(--font-mono)] text-sm text-[#9A9686]">
+                  No products found. Try a different filter.
+                </p>
+                <Link
+                  href="/"
+                  className="rounded-sm border border-[#2F4F44] px-4 py-2 font-[family-name:var(--font-mono)] text-xs font-medium text-[#2F4F44] transition-colors hover:bg-[#2F4F44] hover:text-white"
+                >
+                  Reset filters
+                </Link>
+              </div>
+            )}
+            
           <div className="grid grid-cols-2 gap-5 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => {
-            const hasDiscount = product.discountPercentage > 0;
-            const originalPrice = hasDiscount
-              ? product.price / (1 - product.discountPercentage / 100)
-              : null;
+            {products.map((product) => {
+              const hasDiscount = product.discountPercentage > 0;
+              const originalPrice = hasDiscount
+                ? product.price / (1 - product.discountPercentage / 100)
+                : null;
 
-            return (
-              <article
-                key={product.id}
-                className="group flex flex-col overflow-hidden rounded-sm border border-[#E2DFD6] bg-white transition-shadow hover:shadow-lg"
-              >
-                <div className="relative aspect-square overflow-hidden bg-[#FAF9F6] p-6">
-                  {hasDiscount && (
-                    <span className="absolute left-0 top-3 rounded-r-full bg-[#D98E04] py-1 pl-3 pr-2 font-[family-name:var(--font-mono)] text-[11px] font-bold text-white">
-                      -{Math.round(product.discountPercentage)}%
-                    </span>
-                  )}
-                  <img
-                    src={product.thumbnail}
-                    alt={product.title}
-                    className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
-                  />
-                </div>
-
-                <div className="flex flex-1 flex-col gap-2 p-4">
-                  <span className="font-[family-name:var(--font-body)] text-[10px] font-semibold uppercase tracking-widest text-[#2F4F44]">
-                    {product.category?.replace(/-/g, " ")}
-                  </span>
-                  <h2 className="line-clamp-2 text-sm font-medium leading-snug text-[#1C1B19]">
-                    {product.title}
-                  </h2>
-                  <StarRating rating={product.rating} />
-                  <div className="mt-auto flex items-baseline gap-2 pt-2">
-                    <span className="font-[family-name:var(--font-mono)] text-lg font-bold text-[#1C1B19]">
-                      ${product.price}
-                    </span>
+              return (
+                <article
+                  key={product.id}
+                  className="group flex flex-col overflow-hidden rounded-sm border border-[#E2DFD6] bg-white transition-shadow hover:shadow-lg"
+                >
+                  <div className="relative aspect-square overflow-hidden bg-[#FAF9F6] p-6">
                     {hasDiscount && (
-                      <span className="font-[family-name:var(--font-mono)] text-xs text-[#9A9686] line-through">
-                        ${originalPrice.toFixed(2)}
+                      <span className="absolute left-0 top-3 rounded-r-full bg-[#D98E04] py-1 pl-3 pr-2 font-[family-name:var(--font-mono)] text-[11px] font-bold text-white">
+                        -{Math.round(product.discountPercentage)}%
                       </span>
                     )}
+                    <img
+                      src={product.thumbnail}
+                      alt={product.title}
+                      className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                    />
                   </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+
+                  <div className="flex flex-1 flex-col gap-2 p-4">
+                    <span className="font-[family-name:var(--font-body)] text-[10px] font-semibold uppercase tracking-widest text-[#2F4F44]">
+                      {product.category?.replace(/-/g, " ")}
+                    </span>
+                    <h2 className="line-clamp-2 text-sm font-medium leading-snug text-[#1C1B19]">
+                      {product.title}
+                    </h2>
+                    <StarRating rating={product.rating} />
+                    <div className="mt-auto flex items-baseline gap-2 pt-2">
+                      <span className="font-[family-name:var(--font-mono)] text-lg font-bold text-[#1C1B19]">
+                        ${product.price}
+                      </span>
+                      {hasDiscount && (
+                        <span className="font-[family-name:var(--font-mono)] text-xs text-[#9A9686] line-through">
+                          ${originalPrice.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
 
           <Pagination
             currentPage={page}
