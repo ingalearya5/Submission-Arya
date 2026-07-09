@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SORT_OPTIONS } from "../lib/products";
 
@@ -9,14 +9,14 @@ export function Topbar({ defaultQuery = "", activeSort = "" }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState(defaultQuery);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
     setQuery(defaultQuery);
   }, [defaultQuery]);
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    const trimmed = query.trim();
+  function buildSearchUrl(value) {
+    const trimmed = value.trim();
     const params = new URLSearchParams(searchParams.toString());
 
     if (trimmed) params.set("q", trimmed);
@@ -25,7 +25,31 @@ export function Topbar({ defaultQuery = "", activeSort = "" }) {
     params.delete("page");
 
     const qs = params.toString();
-    router.push(qs ? `/?${qs}` : "/");
+    return qs ? `/?${qs}` : "/";
+  }
+
+  // Live search: debounce URL updates as the user types
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    const trimmed = query.trim();
+    const currentQ = searchParams.get("q") || "";
+    if (trimmed === currentQ) return; // nothing actually changed
+
+    const timer = setTimeout(() => {
+      router.replace(buildSearchUrl(query), { scroll: false });
+    }, 350);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    router.push(buildSearchUrl(query));
   }
 
   function handleSortChange(e) {
