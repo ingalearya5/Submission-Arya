@@ -31,12 +31,20 @@ const spaceGrotesk = Space_Grotesk({
 
 const PAGE_SIZE = 10;
 
-function buildPageHref(page, query = "", category = "", minPrice, maxPrice) {
+function buildPageHref(
+  page,
+  query = "",
+  category = "",
+  minPrice,
+  maxPrice,
+  minRating
+) {
   const params = new URLSearchParams();
   if (query.trim()) params.set("q", query.trim());
   if (category.trim()) params.set("category", category.trim());
   if (minPrice != null) params.set("minPrice", String(minPrice));
   if (maxPrice != null) params.set("maxPrice", String(maxPrice));
+  if (minRating != null) params.set("minRating", String(minRating));
   if (page > 1) params.set("page", String(page));
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
@@ -98,6 +106,7 @@ function Pagination({
   category = "",
   minPrice,
   maxPrice,
+  minRating,
 }) {
   if (totalPages <= 1) return null;
 
@@ -114,7 +123,14 @@ function Pagination({
       className="mt-12 flex flex-wrap items-center justify-center gap-1.5"
     >
       <Link
-        href={buildPageHref(Math.max(1, currentPage - 1), query, category, minPrice, maxPrice)}
+        href={buildPageHref(
+          Math.max(1, currentPage - 1),
+          query,
+          category,
+          minPrice,
+          maxPrice,
+          minRating
+        )}
         aria-disabled={prevDisabled}
         tabIndex={prevDisabled ? -1 : undefined}
         className={`${navBtn} ${
@@ -137,7 +153,7 @@ function Pagination({
         ) : (
           <Link
             key={p}
-            href={buildPageHref(p, query, category, minPrice, maxPrice)}
+            href={buildPageHref(p, query, category, minPrice, maxPrice, minRating)}
             aria-current={p === currentPage ? "page" : undefined}
             className={`flex h-9 w-9 items-center justify-center rounded-sm font-[family-name:var(--font-mono)] text-xs transition-colors ${
               p === currentPage
@@ -151,7 +167,14 @@ function Pagination({
       )}
 
       <Link
-        href={buildPageHref(Math.min(totalPages, currentPage + 1), query, category, minPrice, maxPrice)}
+        href={buildPageHref(
+          Math.min(totalPages, currentPage + 1),
+          query,
+          category,
+          minPrice,
+          maxPrice,
+          minRating
+        )}
         aria-disabled={nextDisabled}
         tabIndex={nextDisabled ? -1 : undefined}
         className={`${navBtn} ${
@@ -174,6 +197,7 @@ export default async function Home({ searchParams }) {
   const categoryFilter = sp?.category?.trim() || "";
   const minPriceParam = parseFloat(sp?.minPrice);
   const maxPriceParam = parseFloat(sp?.maxPrice);
+  const minRatingParam = parseInt(sp?.minRating, 10);
 
   let products = [];
   let total = 0;
@@ -181,6 +205,7 @@ export default async function Home({ searchParams }) {
   let priceBounds = { min: 0, max: 100 };
   let loadError = null;
   let hasPriceFilter = false;
+  let hasRatingFilter = false;
 
   try {
     const allProducts = await getAllProducts();
@@ -192,12 +217,16 @@ export default async function Home({ searchParams }) {
       Number.isFinite(maxPriceParam) &&
       (minPriceParam > priceBounds.min || maxPriceParam < priceBounds.max);
 
+    hasRatingFilter =
+      Number.isFinite(minRatingParam) && minRatingParam >= 1 && minRatingParam <= 5;
+
     const filtered = filterProducts(allProducts, {
       query: searchQuery,
       category: categoryFilter,
       ...(hasPriceFilter
         ? { minPrice: minPriceParam, maxPrice: maxPriceParam }
         : {}),
+      ...(hasRatingFilter ? { minRating: minRatingParam } : {}),
     });
     const pageData = paginateProducts(filtered, page, PAGE_SIZE);
     products = pageData.products;
@@ -227,6 +256,7 @@ export default async function Home({ searchParams }) {
           activeMaxPrice={
             Number.isFinite(maxPriceParam) ? maxPriceParam : priceBounds.max
           }
+          activeMinRating={hasRatingFilter ? minRatingParam : 0}
         />
 
         <main className="min-w-0 flex-1">
@@ -254,7 +284,9 @@ export default async function Home({ searchParams }) {
             </p>
           )}
 
-          {!loadError && (searchQuery || categoryFilter || hasPriceFilter) && total === 0 && (
+          {!loadError &&
+            (searchQuery || categoryFilter || hasPriceFilter || hasRatingFilter) &&
+            total === 0 && (
             <p className="font-[family-name:var(--font-mono)] text-sm text-[#9A9686]">
               No products found. Try a different filter.
             </p>
@@ -316,6 +348,7 @@ export default async function Home({ searchParams }) {
             category={categoryFilter}
             minPrice={hasPriceFilter ? minPriceParam : undefined}
             maxPrice={hasPriceFilter ? maxPriceParam : undefined}
+            minRating={hasRatingFilter ? minRatingParam : undefined}
           />
         </main>
       </div>

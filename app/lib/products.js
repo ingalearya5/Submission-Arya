@@ -47,7 +47,7 @@ export function getPriceBounds(products) {
 /** Mirrors DummyJSON search fields: title, description, brand, category, tags. */
 export function filterProducts(
   products,
-  { query = "", category = "", minPrice, maxPrice } = {}
+  { query = "", category = "", minPrice, maxPrice, minRating } = {}
 ) {
   const trimmedQuery = query.trim();
   const trimmedCategory = category.trim();
@@ -72,6 +72,10 @@ export function filterProducts(
 
   if (minPrice != null && maxPrice != null) {
     result = result.filter((p) => p.price >= minPrice && p.price <= maxPrice);
+  }
+
+  if (minRating != null && minRating >= 1 && minRating <= 5) {
+    result = result.filter((p) => p.rating >= minRating);
   }
 
   return result;

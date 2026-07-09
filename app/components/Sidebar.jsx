@@ -17,8 +17,87 @@ function buildFilterHref(category, searchParams) {
   const maxPrice = searchParams.get("maxPrice");
   if (minPrice) params.set("minPrice", minPrice);
   if (maxPrice) params.set("maxPrice", maxPrice);
+  const minRating = searchParams.get("minRating");
+  if (minRating) params.set("minRating", minRating);
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
+}
+
+function StarIcons({ count, size = "h-3 w-3" }) {
+  return (
+    <span className="flex items-center gap-0.5" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <svg
+          key={i}
+          viewBox="0 0 20 20"
+          className={`${size} ${i <= count ? "fill-[#D98E04]" : "fill-[#E2DFD6]"}`}
+        >
+          <path d="M10 1.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L10 14.9l-5.2 2.6.99-5.79-4.21-4.1 5.82-.85L10 1.5z" />
+        </svg>
+      ))}
+    </span>
+  );
+}
+
+function MinRatingFilter({ activeMinRating = 0 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  function handleChange(value) {
+    const params = new URLSearchParams(searchParams.toString());
+    const rating = Number(value);
+
+    if (rating >= 1 && rating <= 5) {
+      params.set("minRating", String(rating));
+    } else {
+      params.delete("minRating");
+    }
+
+    params.delete("page");
+
+    const qs = params.toString();
+    router.replace(qs ? `/?${qs}` : "/", { scroll: false });
+  }
+
+  const optionClass =
+    "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 transition-colors hover:bg-white has-[:checked]:bg-white";
+
+  return (
+    <fieldset className="mt-6">
+      <legend className="mb-3 font-[family-name:var(--font-mono)] text-[10px] font-medium uppercase tracking-widest text-[#9A9686]">
+        Minimum Rating
+      </legend>
+      <div className="flex flex-col gap-0.5">
+        <label className={optionClass}>
+          <input
+            type="radio"
+            name="minRating"
+            value=""
+            checked={!activeMinRating}
+            onChange={() => handleChange("")}
+            className="accent-[#2F4F44]"
+          />
+          <span className="font-[family-name:var(--font-body)] text-sm text-[#5B584F]">
+            Any
+          </span>
+        </label>
+        {[1, 2, 3, 4, 5].map((stars) => (
+          <label key={stars} className={optionClass}>
+            <input
+              type="radio"
+              name="minRating"
+              value={stars}
+              checked={activeMinRating === stars}
+              onChange={() => handleChange(stars)}
+              className="accent-[#2F4F44]"
+            />
+            <StarIcons count={stars} />
+            <span className="sr-only">{stars} stars and up</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
 }
 
 function PriceRangeSlider({ bounds, minValue, maxValue }) {
@@ -115,6 +194,7 @@ export function Sidebar({
   priceBounds = { min: 0, max: 100 },
   activeMinPrice,
   activeMaxPrice,
+  activeMinRating = 0,
 }) {
   const searchParams = useSearchParams();
   const minValue = activeMinPrice ?? priceBounds.min;
@@ -165,6 +245,8 @@ export function Sidebar({
           minValue={minValue}
           maxValue={maxValue}
         />
+
+        <MinRatingFilter activeMinRating={activeMinRating} />
       </nav>
     </aside>
   );
